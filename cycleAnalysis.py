@@ -9,6 +9,7 @@ from scipy.signal import argrelextrema
 from matplotlib.widgets import SpanSelector
 from matplotlib.widgets import Button
 import math
+from scipy import signal
 
 search_range = 3
 '''19'''
@@ -16,74 +17,237 @@ rolling_order = 7
 '''3 for -35 kPa, 13 for -25 kPa ?'''
 smoothing_order = 3
 
-def open_csv(filepath):
-    original_file_dataframe = pd.read_csv(filepath, sep=",")
-    if(original_file_dataframe.shape[1] > 2):
-        original_file_dataframe = original_file_dataframe.drop(original_file_dataframe.columns[2], axis='columns')
-    clean_data_dataframe = original_file_dataframe[26:].astype(float)
-    clean_data_dataframe.columns = ['Time', 'Pressure']
+def open_csv(filepath, separateur = '\t'):
+    original_file_dataframe = pd.read_csv(filepath, sep= separateur)                # Ouverture du fichier csv avec le séparteur "tabulation"
+    clean_data_dataframe = original_file_dataframe[0:].astype(float)         # Convertion de toute les données de la datafram en float
     return clean_data_dataframe
 
-directory_path = ""
-file_name = "Caro_Lower_25kPa_3x70"
-filepath = directory_path + file_name + ".CSV"
+
+def plot_df(df):
+## Affichage du graph de pression de tous les devices
+    column_name_list = []                       # Liste contenant le nom de chaque device
+    for column_name in df.columns :    # Remplissage de la liste
+        column_name_list.append(column_name)
+    fig_list = []
+    for column_name in column_name_list[1:]:                                 # Plot de toutes les courbes de pression clear dans une figure différente
+        fig = plt.figure(column_name)
+        ax0 = fig.add_subplot(111)
+        ax0.plot(df[column_name_list[0]],df[column_name])
+        fig_list.append(fig)
+    plt.show()
+    return 0
+
+def plot_2_df(df1,df2):   # Permet de comparer 2 Dataframe
+
+    column_name_list1 = []                       # Liste contenant le nom de chaque device
+    column_name_list2 = []
+
+    for column_name in df1.columns :    # Remplissage de la liste
+        column_name_list1.append(column_name)
+
+    for column_name in df2.columns :    # Remplissage de la liste
+        column_name_list2.append(column_name)
+    fig_list = []
+    for  i in range(len(column_name_list1)):                                 # Plot de toutes les courbes fr df1 dans une figure différente
+        if i == 0:
+            pass
+        else:
+            fig = plt.figure(column_name_list1[i]+", "+column_name_list2[i])
+            ax0 = fig.add_subplot(111)
+            ax0.plot(df1[column_name_list1[0]],df1[column_name_list1[i]],color = 'blue', label = column_name_list1[i])
+            ax0.plot(df2[column_name_list2[0]],df2[column_name_list2[i]],color = 'red', label = column_name_list2[i])
+            plt.legend()
+            fig_list.append(fig)
+
+    plt.show()
+
+    return 0
+
+def df_average_filter(df,smoothing_order):
+    column_name_list = []                       # Liste contenant le nom de chaque device
+    for column_name in df.columns :    # Remplissage de la liste
+        column_name_list.append(column_name)
+    filtered_df = pd.DataFrame()
+    filtered_df[column_name_list[0]] = df[column_name_list[0]]
+
+    for column_name in column_name_list[1:]:
+        filtered_df[column_name+"_average_filter_"+str(smoothing_order)] = df[column_name].rolling(smoothing_order, center=True).sum() / smoothing_order
+
+    return filtered_df
 
 
-TargetPressure = file_name.split("_")
-if len(TargetPressure) > 2:
-    if TargetPressure[2] == "35kPa":
-        search_range = 3
-        '''19'''
-        rolling_order = 7
-        '''3 for -35 kPa, 13 for -25 kPa ?'''
-        smoothing_order = 3
-    elif TargetPressure[2] == "25kPa":
-        search_range = 3
-        '''19'''
-        rolling_order = 11
-        '''3 for -35 kPa, 13 for -25 kPa ?'''
-        smoothing_order = 13
+def plot_min_df(original_df, min_df):
+
+    column_name_list_original = []                       # Liste contenant le nom de chaque device
+    column_name_list_min = []
+
+    for column_name in original_df.columns :    # Remplissage de la liste
+        column_name_list_original.append(column_name)
+
+    for column_name in min_df.columns :    # Remplissage de la liste
+        column_name_list_min.append(column_name)
 
 
-pressure_df = open_csv(filepath)
-
-def compute_extremums(df, r_order):
-    df['Pressure'] = df['Pressure'] * 50 - 150
-    df['Averaged'] = df.Pressure.rolling(smoothing_order, center=True).sum() / smoothing_order
-
-    df['min'] = df.iloc[argrelextrema(df.Averaged.values, np.less_equal, order=r_order)[0]]['Averaged']
-    df['max'] = df.iloc[argrelextrema(df.Averaged.values, np.greater_equal, order=r_order)[0]]['Averaged']
-
-    for index, row in df.iterrows():
-        if index > (search_range + 28) and index < (df.shape[0] - search_range + 1):
-            if not pd.isna(row.max):
-
-                for x in range(index - search_range, index + search_range):
-                    if row['max'] < df['Pressure'][x]:
-                        df['max'][index] = df['Pressure'][x]
-                        row['max'] = df['Pressure'][x]
-
-            if not pd.isna(row.min):
-                for x in range(index - search_range, index + search_range):
-                    if row['min'] > df['Pressure'][x]:
-                        df['min'][index] = df['Pressure'][x]
-                        row['min'] = df['Pressure'][x]
-    return df
+    for  i in range(len(column_name_list_original)):
+        if i == 0:
+            pass
+        else:
+            fig = plt.figure(column_name_list_original[i]+", "+column_name_list_min[i])
+            ax0 = fig.add_subplot(111)
+            ax0.plot(original_df[column_name_list_original[0]],original_df[column_name_list_original[i]],color = 'blue', label = column_name_list_original[i])
+            ax0.scatter(min_df[column_name_list_min[0]],min_df[column_name_list_min[i]],color = 'red', label = column_name_list_min[i])
+            plt.legend()
+            #fig_list.append(fig)
 
 
-pressure_df = compute_extremums(pressure_df, rolling_order)
+    plt.show()
 
-fig = plt.figure()
-ax0 = fig.add_subplot(311)
-ax0.plot(pressure_df.Time, pressure_df.Pressure, c='b', label='Pressure')
-ax0.plot(pressure_df.Time, pressure_df.Averaged, c='g', label='Averaged')
-ax0.scatter(pressure_df.Time, pressure_df['min'], c='r')
-ax0.scatter(pressure_df.Time, pressure_df['max'], c='g')
-'''ax0.xlabel('Pressure (kPa)')
-ax0.ylabel('Time (s)')'''
 
-ax1 = fig.add_subplot(312)
-ax2 = fig.add_subplot(313)
+    return 0
+
+def plot_max_df(original_df, max_df):
+
+    column_name_list_original = []                       # Liste contenant le nom de chaque device
+    column_name_list_max = []
+
+    for column_name in original_df.columns :    # Remplissage de la liste
+        column_name_list_original.append(column_name)
+
+    for column_name in max_df.columns :    # Remplissage de la liste
+        column_name_list_max.append(column_name)
+
+
+    for  i in range(len(column_name_list_original)):
+        if i == 0:
+            pass
+        else:
+            fig = plt.figure(column_name_list_original[i]+", "+column_name_list_max[i])
+            ax0 = fig.add_subplot(111)
+            ax0.plot(original_df[column_name_list_original[0]],original_df[column_name_list_original[i]],color = 'blue', label = column_name_list_original[i])
+            ax0.scatter(max_df[column_name_list_max[0]],max_df[column_name_list_max[i]],color = 'red', label = column_name_list_max[i])
+            plt.legend()
+    plt.show()
+
+
+    return 0
+
+def plot_extremum_df(original_df, min_df, max_df):
+
+    column_name_list_original = []                       # Liste contenant le nom de chaque device
+    column_name_list_max = []
+    column_name_list_min = []
+
+    for column_name in original_df.columns :    # Remplissage de la liste
+        column_name_list_original.append(column_name)
+
+    for column_name in max_df.columns :    # Remplissage de la liste
+        column_name_list_max.append(column_name)
+
+    for column_name in min_df.columns :    # Remplissage de la liste
+        column_name_list_min.append(column_name)
+
+
+    for  i in range(len(column_name_list_original)):
+        if i == 0:
+            pass
+        else:
+            fig = plt.figure(column_name_list_original[i]+", "+column_name_list_max[i])
+            ax0 = fig.add_subplot(111)
+            ax0.plot(original_df[column_name_list_original[0]],original_df[column_name_list_original[i]],color = 'blue', label = column_name_list_original[i])
+            ax0.scatter(min_df[column_name_list_min[0]],min_df[column_name_list_min[i]],color = 'm', label = column_name_list_min[i])
+            ax0.scatter(max_df[column_name_list_max[0]],max_df[column_name_list_max[i]],color = 'red', label = column_name_list_max[i])
+            plt.legend()
+    plt.show()
+
+
+    return 0
+
+def compute_extremums(df, r_order,min_condition = -15, max_condition = -5):
+       # Pour etre un min la pression doit etre en dessous de min_conditon
+      # Pour etre un max la pression doit etre au dessus de max_condition
+    column_name_list = []                       # Liste contenant le nom de chaque device
+    for column_name in df.columns :    # Remplissage de la liste
+        column_name_list.append(column_name)
+
+    df_min = pd.DataFrame()
+    df_min[column_name_list[0]] = df[column_name_list[0]]
+    df_max = pd.DataFrame()
+    df_max[column_name_list[0]] = df[column_name_list[0]]
+
+    for column_name in column_name_list[1:]:
+        df_min[column_name+'_min(kPa)'] = df.iloc[argrelextrema(df[column_name].values, np.less_equal, order=r_order)[0]][column_name]
+        df_max[column_name+'_max(kPa)'] = df.iloc[argrelextrema(df[column_name].values, np.greater_equal, order=r_order)[0]][column_name]
+
+    column_name_list_min = []                       # Liste contenant le nom de chaque device
+    for column_name in df_min.columns :    # Remplissage de la liste
+        column_name_list_min.append(column_name)
+    column_name_list_max = []                       # Liste contenant le nom de chaque device
+    for column_name in df_max.columns :    # Remplissage de la liste
+        column_name_list_max.append(column_name)
+
+
+    for column_number in range(len(column_name_list_min[1:])):
+        for index in range(df_min.shape[0]):
+            if df_min[column_name_list_min[column_number+1]][index] > min_condition:
+                df_min[column_name_list_min[column_number+1]][index] = math.nan
+
+        for index in range(df_max.shape[0]):
+            if df_max[column_name_list_max[column_number+1]][index] < max_condition:
+                df_max[column_name_list_max[column_number+1]][index] = math.nan
+
+
+    return df_min, df_max
+
+
+"""
+    column_name_list_max = []                       # Liste contenant le nom de chaque device
+    for column_name in df_max.columns :    # Remplissage de la liste
+        column_name_list_max.append(column_name)
+
+    search_range = 10
+
+    for i in range(len(column_name_list_max[1:])):
+        for index in df_max.iterrows():
+            if (index[0] > search_range) and index[0] < (df.shape[0] - search_range + 1):
+                if not pd.isna(df_max[column_name_list_max[i+1]][index[0]]):
+                    for x in range(index[0] - search_range, index[0] + search_range):
+                        if df_max[column_name_list_max[i+1]][index[0]] < df[column_name_list[i+1]][x]:
+                            df_max[column_name_list_max[i+1]][index[0]] = df[column_name_list[i+1]][x]
+                            df_max[column_name_list_max[i+1]][index[0]] = df[column_name_list[i+1]][x]
+"""
+
+
+def butterwoth_filter(df, fc = 1500, fe = 200):
+#https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
+
+    f_niquist = fc/fe
+    b, a = signal.butter(2, f_niquist,  btype='lowpass',analog=False,fs=fe)
+
+    column_name_list = []                       # Liste contenant le nom de chaque device
+    for column_name in df.columns :             # Remplissage de la liste
+        column_name_list.append(column_name)
+
+
+    df_filtered = pd.DataFrame()
+    df_filtered[column_name_list[0]] = df[column_name_list[0]]
+    for columnn_name in column_name_list[1:]:
+        df_filtered[columnn_name+"_BW_filter"] = signal.filtfilt(b, a, df[columnn_name])
+
+    print(df_filtered)
+    return df_filtered
+
+
+def cycleAnalysis(df):
+
+#  f_mean, p_min, average_p_min, variance_p_min, cycle duration 
+
+    return
+
+
+
+
+"""
+
 
 
 def compute_min_frequency(df):
@@ -158,61 +322,4 @@ def analyze_data(min_df, max_df):
 
     return statistical_data_df, min_df, max_df
 
-def onselect(xmin, xmax):
-    indmin, indmax = np.searchsorted(pressure_df['Time'], (xmin, xmax))
-    indmax = min(len(pressure_df['Time']) - 1, indmax)
-    global subdata_df
-    subdata_df = pd.DataFrame(columns=['Time', 'Pressure', 'Averaged', 'min', 'max'])
-    subdata_df['Time'] = pressure_df.Time[indmin:indmax]
-    subdata_df['Pressure'] = pressure_df.Pressure[indmin:indmax]
-    subdata_df['Averaged'] = pressure_df.Averaged[indmin:indmax]
-    subdata_df['min'] = pressure_df['min'][indmin:indmax]
-    subdata_df['max'] = pressure_df['max'][indmin:indmax]
-    '''subdata_df['min'] = subdata_df.iloc[argrelextrema(subdata_df.Averaged.values, np.less_equal, order=rolling_order)[0]]['Averaged']
-    subdata_df['max'] = subdata_df.iloc[argrelextrema(subdata_df.Averaged.values, np.greater_equal, order=rolling_order)[0]]['Averaged']'''
 
-    minimum_data_df = compute_min_frequency(subdata_df)
-    maximum_data_df = compute_max_frequency(subdata_df)
-
-    extremum_data_df = minimum_data_df
-    extremum_data_df.append(maximum_data_df)
-
-    global output_data_df
-    output_data_df, minimum_data_df, maximum_data_df = analyze_data(minimum_data_df, maximum_data_df)
-
-    ax1.clear()
-    ax1.plot(subdata_df.Time, subdata_df.Pressure, c='b', label='Pressure')
-    ax1.plot(subdata_df.Time, subdata_df.Averaged, c='g', label='Averaged')
-    #ax1.scatter(subdata_df.Time, subdata_df.min, c='r')
-    #ax1.scatter(subdata_df.Time, subdata_df.max, c='g')
-
-    '{:06.2f}'.format(3.141592653589793)
-    output_text = 'cycle number : ' + '{:2.0f}'.format(output_data_df['nb_cycle'][0]) + '\n'
-    output_text += 'min frequency : ' + '{:2.3f}'.format(output_data_df['f_min'][0]) + '\n'
-    output_text += 'max frequency : ' + '{:2.3f}'.format(output_data_df['f_max'][0]) + '\n'
-    output_text += 'mean frequency : ' + '{:2.3f}'.format(output_data_df['f_mean'][0]) + '\n'
-    output_text += 'min pressure : ' + '{:2.3f}'.format(output_data_df['p_min'][0]) + '\n'
-    output_text += 'average min pressure : ' + '{:2.3f}'.format(output_data_df['average_p_min'][0]) + '\n'
-    output_text += 'min pressure variance : ' + '{:2.3f}'.format(output_data_df['variance_p_min'][0]) + '\n'
-    output_text += 'max pressure : ' + '{:2.3f}'.format(output_data_df['p_max'][0]) + '\n'
-    output_text += 'average max pressure : ' + '{:2.3f}'.format(output_data_df['average_p_max'][0]) + '\n'
-    output_text += 'max pressure variance : ' + '{:2.3f}'.format(output_data_df['variance_p_max'][0]) + '\n'
-    ax2.clear()
-    ax2.text(0.01, 0.01, output_text, verticalalignment='bottom', horizontalalignment='left', transform=ax2.transAxes, color='black', fontsize=8)
-
-span = SpanSelector(ax0, onselect, 'horizontal', useblit=True,
-                    rectprops=dict(alpha=0.5, facecolor='red'))
-
-def save_to_csv(self):
-    output_file_name = directory_path + file_name + "_Ouptut.csv"
-    output_data_df.to_csv(output_file_name, header=True, mode='a')
-    subdata_df.to_csv(output_file_name, header=True, mode='a')
-    '''Nothing to do, yet'''
-    print('We are saving !')
-
-
-axsave = plt.axes([0.90, 0.01, 0.05, 0.05])
-bsave = Button(axsave, 'Save')
-bsave.on_clicked(save_to_csv)
-
-plt.show()

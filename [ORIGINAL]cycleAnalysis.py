@@ -17,32 +17,38 @@ rolling_order = 7
 smoothing_order = 3
 
 def open_csv(filepath):
-    original_file_dataframe = pd.read_csv(filepath, sep='\t')                # Ouverture du fichier csv avec le séparteur "tabulation"
-    clean_data_dataframe = original_file_dataframe[0:].astype(float)         # Convertion de toute les données de la datafram en float
+    original_file_dataframe = pd.read_csv(filepath, sep=",")
+    if(original_file_dataframe.shape[1] > 2):
+        original_file_dataframe = original_file_dataframe.drop(original_file_dataframe.columns[2], axis='columns')
+    clean_data_dataframe = original_file_dataframe[26:].astype(float)
+    clean_data_dataframe.columns = ['Time', 'Pressure']
     return clean_data_dataframe
 
 directory_path = ""
-file_name = "brossage_127_28-3-2020_5:25"
-filepath = directory_path + file_name + ".csv"
+file_name = "Caro_Lower_25kPa_3x70"
+filepath = directory_path + file_name + ".CSV"
+
+
+TargetPressure = file_name.split("_")
+if len(TargetPressure) > 2:
+    if TargetPressure[2] == "35kPa":
+        search_range = 3
+        '''19'''
+        rolling_order = 7
+        '''3 for -35 kPa, 13 for -25 kPa ?'''
+        smoothing_order = 3
+    elif TargetPressure[2] == "25kPa":
+        search_range = 3
+        '''19'''
+        rolling_order = 11
+        '''3 for -35 kPa, 13 for -25 kPa ?'''
+        smoothing_order = 13
+
 
 pressure_df = open_csv(filepath)
 
-## Affichage du graph de pression de tous les devices
-
-column_name_list = []                       # Liste contenant le nom de chaque device
-for column_name in pressure_df.columns :    # Remplissage de la liste
-    column_name_list.append(column_name)
-
-for column_name in column_name_list[1:]:                                 # Plot de toutes les courbes de pression
-    plt.plot(pressure_df[column_name_list[0]],pressure_df[column_name])
-
-plt.show()
-
-
-
-"""
 def compute_extremums(df, r_order):
-    df['Pressure']   = df['Pressure'] * 50 - 150
+    df['Pressure'] = df['Pressure'] * 50 - 150
     df['Averaged'] = df.Pressure.rolling(smoothing_order, center=True).sum() / smoothing_order
 
     df['min'] = df.iloc[argrelextrema(df.Averaged.values, np.less_equal, order=r_order)[0]]['Averaged']
@@ -210,4 +216,3 @@ bsave = Button(axsave, 'Save')
 bsave.on_clicked(save_to_csv)
 
 plt.show()
-"""
