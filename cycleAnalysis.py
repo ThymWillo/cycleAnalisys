@@ -17,6 +17,9 @@ rolling_order = 7
 '''3 for -35 kPa, 13 for -25 kPa ?'''
 smoothing_order = 3
 
+#plot histogramme extremum
+#verifier filtre butterworth
+
 def open_csv(filepath, separateur = '\t'):
     original_file_dataframe = pd.read_csv(filepath, sep= separateur)                # Ouverture du fichier csv avec le séparteur "tabulation"
     clean_data_dataframe = original_file_dataframe[0:].astype(float)         # Convertion de toute les données de la datafram en float
@@ -162,7 +165,7 @@ def plot_extremum_df(original_df, min_df, max_df):
 
     return 0
 
-def compute_extremums(df, r_order,min_condition = -15, max_condition = -5):
+def compute_extremums(df, r_order=50,min_condition = -15, max_condition = -5):
        # Pour etre un min la pression doit etre en dessous de min_conditon
       # Pour etre un max la pression doit etre au dessus de max_condition
     column_name_list = []                       # Liste contenant le nom de chaque device
@@ -195,26 +198,26 @@ def compute_extremums(df, r_order,min_condition = -15, max_condition = -5):
             if df_max[column_name_list_max[column_number+1]][index] < max_condition:
                 df_max[column_name_list_max[column_number+1]][index] = math.nan
 
+    """
+        column_name_list_max = []                       # Liste contenant le nom de chaque device
+        for column_name in df_max.columns :    # Remplissage de la liste
+            column_name_list_max.append(column_name)
 
+        search_range = 10
+
+        for i in range(len(column_name_list_max[1:])):
+            for index in df_max.iterrows():
+                if (index[0] > search_range) and index[0] < (df.shape[0] - search_range + 1):
+                    if not pd.isna(df_max[column_name_list_max[i+1]][index[0]]):
+                        for x in range(index[0] - search_range, index[0] + search_range):
+                            if df_max[column_name_list_max[i+1]][index[0]] < df[column_name_list[i+1]][x]:
+                                df_max[column_name_list_max[i+1]][index[0]] = df[column_name_list[i+1]][x]
+                                df_max[column_name_list_max[i+1]][index[0]] = df[column_name_list[i+1]][x]
+    """
     return df_min, df_max
 
 
-"""
-    column_name_list_max = []                       # Liste contenant le nom de chaque device
-    for column_name in df_max.columns :    # Remplissage de la liste
-        column_name_list_max.append(column_name)
 
-    search_range = 10
-
-    for i in range(len(column_name_list_max[1:])):
-        for index in df_max.iterrows():
-            if (index[0] > search_range) and index[0] < (df.shape[0] - search_range + 1):
-                if not pd.isna(df_max[column_name_list_max[i+1]][index[0]]):
-                    for x in range(index[0] - search_range, index[0] + search_range):
-                        if df_max[column_name_list_max[i+1]][index[0]] < df[column_name_list[i+1]][x]:
-                            df_max[column_name_list_max[i+1]][index[0]] = df[column_name_list[i+1]][x]
-                            df_max[column_name_list_max[i+1]][index[0]] = df[column_name_list[i+1]][x]
-"""
 
 
 def butterwoth_filter(df, fc = 1500, fe = 200):
@@ -233,93 +236,64 @@ def butterwoth_filter(df, fc = 1500, fe = 200):
     for columnn_name in column_name_list[1:]:
         df_filtered[columnn_name+"_BW_filter"] = signal.filtfilt(b, a, df[columnn_name])
 
-    print(df_filtered)
     return df_filtered
 
 
 def cycleAnalysis(df):
 
-#  f_mean, p_min, average_p_min, variance_p_min, cycle duration 
+#  f_mean, p_min, p_minminmin, average_p_min, variance_p_min, cycle_duration
 
     return
 
+def cycle_duration(df):
+    df_min, df_max = compute_extremums(df)
+    duration_list = []
+
+    column_name_list_min = []                       # Liste contenant le nom de chaque device
+    for column_name in df_min.columns :             # Remplissage de la liste
+        column_name_list_min.append(column_name)
+
+    column_name_list_max = []                       # Liste contenant le nom de chaque device
+    for column_name in df_max.columns :             # Remplissage de la liste
+        column_name_list_max.append(column_name)
+    for i in range(df_min.shape[1]):
+        if i == 0:
+            pass
+        else :
+            #find the first min
+            first_min = math.nan
+            index_first = 0
+
+            while math.isnan(first_min):
+                index_first = index_first +1
+                first_min = df_min[column_name_list_min[i]][df.index[index_first]]
+            #print(str(df_min[column_name_list_min[0]][df.index[index]])+"        "+str(df_min[column_name_list_min[1]][df.index[index]]))
+
+            #find the first max
+            first_max = math.nan
+            while math.isnan(first_max):
+                index_first = index_first - 1
+                first_max = df_max[column_name_list_max[i]][df.index[index_first]]
+            #print(str(df_max[column_name_list_max[0]][df.index[index]])+"        "+str(df_max[column_name_list_max[1]][df.index[index]]))
 
 
+            #find the last min
+            last_min = math.nan
+            index_last = df_min.shape[0]
 
-"""
+            while math.isnan(last_min):
+                index_last = index_last -1
+                last_min = df_min[column_name_list_min[i]][df.index[index_last]]
+            #print(str(df_min[column_name_list_min[0]][df.index[index]])+"        "+str(df_min[column_name_list_min[1]][df.index[index]]))
 
+            #find the last max
+            last_max = math.nan
+            while math.isnan(last_max):
+                index_last = index_last + 1
+                last_max = df_max[column_name_list_max[i]][df.index[index_last]]
+            #print(str(df_max[column_name_list_max[0]][df.index[index]])+"        "+str(df_max[column_name_list_max[1]][df.index[index]]))
+            duration_list.append(df_max[column_name_list_max[0]][df.index[index_last]]-df_max[column_name_list_max[0]][df.index[index_first]])
+    return duration_list
 
-
-def compute_min_frequency(df):
-    minimum_data_dataframe = pd.DataFrame(columns=['Time', 'Pressure', 'Min'])
-    minimum_data_dataframe = df.filter(['Time', 'Pressure', 'min'], axis=1)
-    minimum_data_dataframe.dropna(inplace=True)
-    minimum_data_dataframe['Duration'] = minimum_data_dataframe['Time'].diff()
-    minimum_data_dataframe['Frequency'] = 1.0 / minimum_data_dataframe['Duration']
-    is_relevant = minimum_data_dataframe['Frequency'] < 10
-    minimum_data_dataframe = minimum_data_dataframe[is_relevant]
-    minimum_data_dataframe['MinFreq'] = minimum_data_dataframe['Frequency'].min()
-    minimum_data_dataframe['MaxFreq'] = minimum_data_dataframe['Frequency'].max()
-    minimum_data_dataframe['MeanFreq'] = minimum_data_dataframe['Frequency'].mean()
-    return minimum_data_dataframe
-
-def compute_max_frequency(df):
-    maximum_data_dataframe = pd.DataFrame(columns=['Time', 'Pressure', 'Max'])
-    maximum_data_dataframe = df.filter(['Time', 'Pressure', 'max'], axis=1)
-    maximum_data_dataframe.dropna(inplace=True)
-    maximum_data_dataframe['Duration'] = maximum_data_dataframe['Time'].diff()
-    maximum_data_dataframe['Frequency'] = 1.0 / maximum_data_dataframe['Duration']
-    is_relevant = maximum_data_dataframe['Frequency'] < 10
-    maximum_data_dataframe = maximum_data_dataframe[is_relevant]
-    maximum_data_dataframe['MinFreq'] = maximum_data_dataframe['Frequency'].min()
-    maximum_data_dataframe['MaxFreq'] = maximum_data_dataframe['Frequency'].max()
-    maximum_data_dataframe['MeanFreq'] = maximum_data_dataframe['Frequency'].mean()
-    return maximum_data_dataframe
-
-def analyze_data(min_df, max_df):
-    # Dropping first and last point of min and max to prevent edge effect
-    min_df.drop(min_df.index[1])
-    min_df.drop(min_df.index[-1])
-    max_df.drop(max_df.index[1])
-    max_df.drop(max_df.index[-1])
-    statistical_data_df = pd.DataFrame(index=['0'], columns=['nb_cycle', 'f_min', 'f_max', 'f_mean', 'f_variance', 'p_min', 'average_p_min', 'variance_p_min', 'p_max', 'average_p_max', 'variance_p_max'])
-    statistical_data_df['nb_cycle'][0] = (min_df.shape[0] + max_df.shape[0])/2.0
-    if min_df['Frequency'].min() < max_df['Frequency'].min():
-        statistical_data_df['f_min'][0] = min_df['Frequency'].min()
-    else:
-        statistical_data_df['f_min'][0] = max_df['Frequency'].min()
-
-    if max_df['Frequency'].max() > min_df['Frequency'].max():
-        statistical_data_df['f_max'][0] = max_df['Frequency'].max()
-    else:
-        statistical_data_df['f_max'][0] = min_df['Frequency'].max()
-
-    temp_df = max_df.append(min_df)
-    statistical_data_df['f_mean'][0] = temp_df['Frequency'].mean()
-
-    statistical_data_df['p_min'][0] = min_df['Pressure'].min()
-    statistical_data_df['average_p_min'][0] = min_df['Pressure'].mean()
-    statistical_data_df['p_max'][0] = max_df['Pressure'].max()
-    statistical_data_df['average_p_max'][0] = max_df['Pressure'].mean()
-
-    acc = 0
-    for index, row in temp_df.iterrows():
-        acc += math.pow((row.Frequency - statistical_data_df['f_mean'][0]), 2)
-
-    statistical_data_df['f_variance'] = acc / temp_df.shape[0]
-
-    acc = 0
-    for index, row in min_df.iterrows():
-        acc += math.pow((row.Pressure - statistical_data_df['average_p_min'][0]), 2)
-
-    statistical_data_df['variance_p_min'] = acc / temp_df.shape[0]
-
-    acc = 0
-    for index, row in max_df.iterrows():
-        acc += math.pow((row.Pressure - statistical_data_df['average_p_max'][0]), 2)
-
-    statistical_data_df['variance_p_max'] = acc / temp_df.shape[0]
-
-    return statistical_data_df, min_df, max_df
 
 
