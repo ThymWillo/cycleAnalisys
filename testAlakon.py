@@ -16,21 +16,18 @@ def main(terminal_arg):
     file_name = terminal_arg
     filepath = directory_path + file_name
 
-    pressure_df = open_csv(filepath)
+    pressure_df = open_csv(filepath,',')
     print(pressure_df)
 
-    plot_df(pressure_df)
-
-
-
-
-
-
-
+    #plot_df(pressure_df)
 
     #pressure_df_filtered = df_average_filter(pressure_df,smoothing_order)
-    #pressure_df_filtered = butterwoth_filter(pressure_df)
-    #plot_2_df(pressure_df,pressure_df_filtered)
+ 
+    pressure_df_filtered = butterwoth_filter(pressure_df,30,1000,traceBode = True)
+    #plot_df(pressure_df_filtered)
+    plot_2_df(pressure_df,pressure_df_filtered)
+
+
     #plot_df(pressure_df_filtered)
     #min_df,df_max = compute_extremums(pressure_df_filtered)
     #plot_min_df(pressure_df_filtered,min_df)

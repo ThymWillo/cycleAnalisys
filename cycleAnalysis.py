@@ -26,7 +26,7 @@ def open_csv(filepath, separateur = '\t'):
     return clean_data_dataframe
 
 
-def plot_df(df):
+def plot_df(df,x_axis_name = None, y_axis_name = None):
 ## Affichage du graph de pression de tous les devices
     column_name_list = []                       # Liste contenant le nom de chaque device
     for column_name in df.columns :    # Remplissage de la liste
@@ -34,13 +34,23 @@ def plot_df(df):
     fig_list = []
     for column_name in column_name_list[1:]:                                 # Plot de toutes les courbes de pression clear dans une figure différente
         fig = plt.figure(column_name)
+
         ax0 = fig.add_subplot(111)
-        ax0.plot(df[column_name_list[0]],df[column_name])
+        ax0.plot(df[column_name_list[0]],df[column_name],color = 'blue', label = column_name)
+
+        if (x_axis_name is not None) :
+            ax0.set_xlabel(x_axis_name)        
+
+        if (y_axis_name is not None):
+            ax0.set_ylabel(y_axis_name)
+
+        plt.legend()
+        plt.grid()
         fig_list.append(fig)
     plt.show()
     return 0
 
-def plot_2_df(df1,df2):   # Permet de comparer 2 Dataframe
+def plot_2_df(df1,df2,x_axis_name = None, y_axis_name = None):   # Permet de comparer 2 Dataframe
 
     column_name_list1 = []                       # Liste contenant le nom de chaque device
     column_name_list2 = []
@@ -59,6 +69,15 @@ def plot_2_df(df1,df2):   # Permet de comparer 2 Dataframe
             ax0 = fig.add_subplot(111)
             ax0.plot(df1[column_name_list1[0]],df1[column_name_list1[i]],color = 'blue', label = column_name_list1[i])
             ax0.plot(df2[column_name_list2[0]],df2[column_name_list2[i]],color = 'red', label = column_name_list2[i])
+
+            if (x_axis_name is not None) :
+                ax0.set_xlabel(x_axis_name)        
+
+            if (y_axis_name is not None):
+                ax0.set_ylabel(y_axis_name)
+
+        
+            plt.grid()
             plt.legend()
             fig_list.append(fig)
 
@@ -220,12 +239,43 @@ def compute_extremums(df, r_order=50,min_condition = -15, max_condition = -5):
 
 
 
-def butterwoth_filter(df, fc = 1500, fe = 200):
+def butterwoth_filter(df, fc, fs, traceBode = False):
 #https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.butter.html
+#https://www.programcreek.com/python/example/59508/scipy.signal.butter
 
-    f_niquist = fc/fe
-    b, a = signal.butter(2, f_niquist,  btype='lowpass',analog=False,fs=fe)
 
+    """
+    Design lowpass filter.
+
+    Args:
+        - cutoff (float) : the cutoff frequency of the filter.
+        - fs     (float) : the sampling rate.
+        - order    (int) : order of the filter, by default defined to 5.
+    """
+    # calculate the Nyquist frequency
+    nyq = 0.5 * fs
+
+    # design filter
+    wn = fc / nyq
+    b, a = signal.butter(5, wn, btype='low', analog=False)
+
+    # returns the filter coefficients: numerator and denominator
+    
+    if traceBode:
+        sys = signal.TransferFunction(b, a, dt=1/fs)
+        w, mag = signal.freqz(b,a)
+        plt.figure()
+        plt.semilogx(w*nyq/math.pi, 20*np.log10(mag))    # Bode magnitude plot
+        plt.axhline(y=max(mag)-3)
+
+        plt.title('Butterworth filter frequency response')
+        plt.xlabel('Frequency [Hz]')
+        plt.ylabel('Amplitude [dB]')
+        plt.grid(which='both', axis='both')
+        plt.show()
+        
+
+    
     column_name_list = []                       # Liste contenant le nom de chaque device
     for column_name in df.columns :             # Remplissage de la liste
         column_name_list.append(column_name)
@@ -235,8 +285,9 @@ def butterwoth_filter(df, fc = 1500, fe = 200):
     df_filtered[column_name_list[0]] = df[column_name_list[0]]
     for columnn_name in column_name_list[1:]:
         df_filtered[columnn_name+"_BW_filter"] = signal.filtfilt(b, a, df[columnn_name])
-
+    
     return df_filtered
+
 
 
 def cycleAnalysis(df):
@@ -296,4 +347,43 @@ def cycle_duration(df):
     return duration_list
 
 
+def plot_3_df(df1,df2,df3,x_axis_name = None, y_axis_name = None):   # Permet de comparer 2 Dataframe
 
+    column_name_list1 = []                       # Liste contenant le nom de chaque device
+    column_name_list2 = []
+    column_name_list3 = []
+
+    for column_name in df1.columns :    # Remplissage de la liste
+        column_name_list1.append(column_name)
+
+    for column_name in df2.columns :    # Remplissage de la liste
+        column_name_list2.append(column_name)
+    
+    for column_name in df3.columns :    # Remplissage de la liste
+        column_name_list3.append(column_name)   
+
+    fig_list = []
+    for  i in range(len(column_name_list1)):                                 # Plot de toutes les courbes fr df1 dans une figure différente
+        if i == 0:
+            pass
+        else:
+            fig = plt.figure(column_name_list1[i]+", "+column_name_list2[i])
+            ax0 = fig.add_subplot(111)
+            ax0.plot(df1[column_name_list1[0]],df1[column_name_list1[i]],color = 'blue', label = column_name_list1[i])
+            ax0.plot(df2[column_name_list2[0]],df2[column_name_list2[i]],color = 'red', label = column_name_list2[i])
+            ax0.plot(df3[column_name_list3[0]],df3[column_name_list3[i]],color = 'green', label = column_name_list3[i])
+
+            if (x_axis_name is not None) :
+                ax0.set_xlabel(x_axis_name)        
+
+            if (y_axis_name is not None):
+                ax0.set_ylabel(y_axis_name)
+
+        
+            plt.grid()
+            plt.legend()
+            fig_list.append(fig)
+
+    plt.show()
+
+    return 0
